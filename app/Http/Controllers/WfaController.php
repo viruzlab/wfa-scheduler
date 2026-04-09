@@ -5,15 +5,18 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\WfaBooking;
 use App\Models\User;
+use App\Models\Dosen;
 use App\Models\Setting;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Cache;
 
 class WfaController extends Controller
 {
     public function index()
     {
-        $dosens = User::where('is_admin', false)->get();
+        $dosens = Dosen::all();
         return view('wfa.index', compact('dosens'));
     }
 
@@ -27,22 +30,30 @@ class WfaController extends Controller
         // Start from the first Monday that could belong to this month's first week
         $currentDate = $startOfMonth->copy()->startOfWeek(Carbon::MONDAY);
         
+        $holidays = $this->getHolidays();
+
         while ($currentDate->lte($endOfMonth)) {
             $weekDates = [];
             for ($i = 0; $i < 5; $i++) {
                 $date = $currentDate->copy()->addDays($i);
+                $dateStr = $date->toDateString();
                 
-                $bookingsCount = WfaBooking::where('booking_date', $date->toDateString())->count();
+                $bookingsCount = WfaBooking::where('booking_date', $dateStr)->count();
                 $limitSetting = Setting::where('key', 'daily_limit')->first();
                 $limit = $limitSetting ? (int)$limitSetting->value : 5; // Default limit 5
                 
+                $isHoliday = isset($holidays[$dateStr]);
+                $holidayName = $isHoliday ? $holidays[$dateStr]['summary'] : null;
+
                 $weekDates[] = [
-                    'date' => $date->toDateString(),
+                    'date' => $dateStr,
                     'day_name' => $date->format('l'),
                     'day_name_id' => $this->translateDay($date->format('l')),
                     'is_full' => $bookingsCount >= $limit,
                     'remaining' => $limit - $bookingsCount,
-                    'in_month' => $date->month == $month
+                    'in_month' => $date->month == $month,
+                    'is_holiday' => $isHoliday,
+                    'holiday_name' => $holidayName
                 ];
             }
             
@@ -57,7 +68,7 @@ class WfaController extends Controller
         $userId = $request->query('user_id');
         $userBookings = [];
         if ($userId) {
-            $userBookings = WfaBooking::where('user_id', $userId)->get()
+            $userBookings = WfaBooking::where('dosen_id', $userId)->get()
                 ->map(fn($b) => [
                     'id' => $b->id,
                     'date' => $b->booking_date,
@@ -79,15 +90,38 @@ class WfaController extends Controller
         return $days[$day] ?? $day;
     }
 
+    private function getHolidays()
+    {
+        return Cache::remember('indo_holidays', 60 * 24 * 30, function () { // Cache for 30 days
+            try {
+                // adding withoutVerifying() to prevent SSL issues on local dev like Laragon
+                $response = Http::withoutVerifying()->timeout(10)->get('https://raw.githubusercontent.com/guangrei/APIHariLibur_V2/main/holidays.json');
+                
+                if ($response->successful()) {
+                    return $response->json();
+                }
+            } catch (\Exception $e) {
+                \Log::error("Gagal mengambil data libur: " . $e->getMessage());
+            }
+            return [];
+        });
+    }
+
     public function store(Request $request)
     {
         $request->validate([
             'date' => 'required|date',
-            'user_id' => 'required|exists:users,id'
+            'user_id' => 'required|exists:dosens,id'
         ]);
 
         $date = Carbon::parse($request->date);
         $userId = $request->user_id;
+
+        // Cek apakah tanggal adalah hari libur (backend protection)
+        $holidays = $this->getHolidays();
+        if (isset($holidays[$date->toDateString()])) {
+            return response()->json(['message' => 'Tanggal ini adalah hari libur nasional.'], 422);
+        }
         
         $limitSetting = Setting::where('key', 'daily_limit')->first();
         $limit = $limitSetting ? (int)$limitSetting->value : 5;
@@ -96,7 +130,7 @@ class WfaController extends Controller
         $weekNumber = $date->weekOfYear;
         $year = $date->year;
 
-        $exists = WfaBooking::where('user_id', $userId)
+        $exists = WfaBooking::where('dosen_id', $userId)
             ->where('week_number', $weekNumber)
             ->where('year', $year)
             ->exists();
@@ -112,10 +146,10 @@ class WfaController extends Controller
         }
 
         WfaBooking::create([
-            'user_id' => $userId,
-            'booking_date' => $request->date,
+            'dosen_id' => $userId,
+            'booking_date' => $date->format('Y-m-d'),
             'week_number' => $weekNumber,
-            'year' => $year
+            'year' => $year,
         ]);
 
         return response()->json(['message' => 'Berhasil memilih jadwal WFA.']);
@@ -125,10 +159,10 @@ class WfaController extends Controller
     {
         $request->validate([
             'date' => 'required|date',
-            'user_id' => 'required|exists:users,id'
+            'user_id' => 'required|exists:dosens,id'
         ]);
         
-        $booking = WfaBooking::where('user_id', $request->user_id)
+        $booking = WfaBooking::where('dosen_id', $request->user_id)
             ->where('booking_date', $request->date)
             ->first();
 
@@ -143,7 +177,7 @@ class WfaController extends Controller
 
     public function admin()
     {
-        $dosens = User::where('is_admin', false)->get();
+        $dosens = Dosen::all();
         $limitSetting = Setting::where('key', 'daily_limit')->first();
         $limit = $limitSetting ? $limitSetting->value : 5;
 
@@ -153,16 +187,15 @@ class WfaController extends Controller
     public function storeDosen(Request $request)
     {
         $request->validate([
-            'nip' => 'required|unique:users',
+            'nip' => 'nullable|unique:dosens',
             'name' => 'required|string|max:255',
+            'email' => 'nullable|email|unique:dosens'
         ]);
 
-        User::create([
+        Dosen::create([
             'nip' => $request->nip,
             'name' => $request->name,
-            'email' => strtolower(str_replace(' ', '', $request->name)) . rand(10,99). '@example.com',
-            'password' => Hash::make('password'),
-            'is_admin' => false,
+            'email' => $request->email ?? strtolower(str_replace(' ', '', $request->name)) . rand(10,99). '@example.com',
         ]);
 
         return back()->with('success', 'Dosen berhasil ditambahkan!');
@@ -184,15 +217,15 @@ class WfaController extends Controller
 
     public function getAdminBookings(Request $request)
     {
-        $bookings = WfaBooking::with('user')
+        $bookings = WfaBooking::with('dosen')
             ->orderBy('booking_date', 'desc')
             ->get();
 
         return response()->json([
             'count' => $bookings->count(),
             'bookings' => $bookings->map(fn($b) => [
-                'user_name' => $b->user->name,
-                'user_nip' => $b->user->nip ?? '-',
+                'user_name' => $b->dosen->name,
+                'user_nip' => $b->dosen->nip ?? '-',
                 'booking_date' => Carbon::parse($b->booking_date)->format('d M Y'),
                 'booked_at' => $b->created_at->format('d M Y H:i'),
             ])

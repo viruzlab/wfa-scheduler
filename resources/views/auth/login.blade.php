@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - WFA Scheduler</title>
+    <link rel="icon" href="/logo.png" type="image/png">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -114,6 +115,7 @@
 
     <div class="login-card">
         <div class="login-header">
+            <img src="/logo.png" alt="WFA Logo" style="height: 80px; border-radius: 50%; padding: 5px; background: white; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.2); margin-bottom: 1rem;">
             <h1>Login</h1>
             <p>Akses WFA Scheduler</p>
         </div>

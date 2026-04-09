@@ -4,8 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WFA Scheduler - Modern Emerald</title>
+    <title>WFA Scheduler - IEKI APPs</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <link rel="icon" href="/logo.png" type="image/png">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -180,7 +181,24 @@
             border-color: var(--emerald);
         }
 
-        .day-card:hover:not(.disabled):not(.booked) {
+        .day-card.holiday {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: #ef4444;
+            cursor: not-allowed;
+        }
+
+        .holiday-name {
+            font-size: 0.65rem;
+            color: #ef4444;
+            font-weight: 600;
+            margin-top: 5px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .day-card:hover:not(.disabled):not(.booked):not(.holiday) {
             background: rgba(16, 185, 129, 0.05);
             border-color: var(--emerald);
             cursor: pointer;
@@ -277,7 +295,9 @@
 
 <body>
     <div class="container">
-        <header>
+        <header style="text-align: center; margin-bottom: 2rem;">
+            <img src="/logo.png" alt="WFA Logo"
+                style="height: 100px; margin-bottom: 1rem; border-radius: 50%; padding: 5px; background: white; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.2);">
             <h1>WFA Scheduler</h1>
             <p>Pilih jadwal kerja remote Anda secara mingguan.</p>
         </header>
@@ -400,24 +420,37 @@
         function renderDay(day, isWeekBooked) {
             const bookedDates = userBookings.map(b => b.date);
             const isBooked = bookedDates.includes(day.date);
-            const canBook = !isBooked && !isWeekBooked && !day.is_full && day.in_month;
+            const canBook = !isBooked && !isWeekBooked && !day.is_full && day.in_month && !day.is_holiday;
 
             let classes = ['day-card'];
             if (isBooked) classes.push('booked');
-            if (!canBook && !isBooked) classes.push('disabled');
+            if (day.is_holiday) classes.push('holiday');
+            if (!canBook && !isBooked && !day.is_holiday) classes.push('disabled');
             if (!day.in_month) classes.push('not-in-month');
 
             const spotsPercent = (5 - day.remaining) / 5 * 100;
+
+            let content = '';
+            if (day.is_holiday) {
+                content = `
+                    <div class="full-text">LIBUR</div>
+                    <div class="holiday-name">${day.holiday_name}</div>
+                `;
+            } else if (day.is_full && !isBooked) {
+                content = '<div class="full-text">PENUH</div>';
+            } else {
+                content = `
+                    <div class="spots-label">Sisa Kuota</div>
+                    <div class="spots-count">${day.remaining}</div>
+                    <div class="progress-bar"><div class="progress-fill" style="width: ${spotsPercent}%"></div></div>
+                `;
+            }
 
             return `
                 <div class="${classes.join(' ')}" ${canBook ? `onclick="bookDate('${day.date}')"` : ''}>
                     <div class="day-name">${day.day_name_id}</div>
                     <div class="day-date">${formatDate(day.date)}</div>
-                    ${day.is_full && !isBooked ? '<div class="full-text">PENUH</div>' : `
-                        <div class="spots-label">Sisa Kuota</div>
-                        <div class="spots-count">${day.remaining}</div>
-                        <div class="progress-bar"><div class="progress-fill" style="width: ${spotsPercent}%"></div></div>
-                    `}
+                    ${content}
                     ${isBooked ? `
                         <div style="margin-top: 10px; font-size: 0.7rem; color: #fff; font-weight: bold;">SAYA DIPILIH</div>
                         <button onclick="cancelDate('${day.date}')" style="margin-top: 10px; background: #ef4444; border: none; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.7rem; cursor: pointer;">Batalkan</button>

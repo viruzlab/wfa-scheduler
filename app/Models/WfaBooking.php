@@ -7,14 +7,14 @@ use Illuminate\Database\Eloquent\Model;
 class WfaBooking extends Model
 {
     protected $fillable = [
-        'user_id',
+        'dosen_id',
         'booking_date',
         'week_number',
         'year',
     ];
 
-    public function user()
+    public function dosen()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(Dosen::class);
     }
 }

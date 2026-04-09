@@ -4,7 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WFA Admin - Monitor Peserta</title>
+    <title>Admin - WFA Scheduler</title>
+    <link rel="icon" href="/logo.png" type="image/png">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -209,16 +210,21 @@
 <body>
     <div class="container">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-            <a href="/" class="back-link" style="margin-bottom: 0;">← Kembali ke Jadwal</a>
+            <a href="/" class="back-link">
+                &larr; Kembali ke Jadwal Utama
+            </a>
             <form action="{{ route('logout') }}" method="POST" style="display:inline;">
                 @csrf
                 <button type="submit"
                     style="background: none; color: #ef4444; border: 1px solid #ef4444; padding: 5px 15px; border-radius: 20px; cursor: pointer; font-family: inherit; font-size: 0.9rem;">Logout</button>
             </form>
         </div>
-        <header>
-            <h1>Admin Panel</h1>
-            <p>Kelola Dosen, Limit, dan Monitor Booking.</p>
+        <header style="display: flex; align-items: center; gap: 1rem; margin-bottom: 2rem;">
+            <img src="/logo.png" alt="WFA Logo" style="height: 60px; border-radius: 50%; padding: 3px; background: white; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.2);">
+            <div>
+                <h1 style="margin: 0; color: var(--emerald);">Admin Panel</h1>
+                <p style="margin: 0; color: var(--text-dim);">Kelola Dosen, Limit, dan Monitor Booking.</p>
+            </div>
         </header>
 
         @if(session('success'))
