@@ -223,13 +223,17 @@ class WfaController extends Controller
         $bookings = WfaBooking::with('dosen')
             ->orderBy('booking_date', 'desc')
             ->get();
+            
+        $allDosens = \App\Models\Dosen::all(['id', 'nip', 'name']);
 
         return response()->json([
             'count' => $bookings->count(),
+            'dosens' => $allDosens,
             'bookings' => $bookings->map(fn($b) => [
                 'user_name' => $b->dosen->name,
                 'user_nip' => $b->dosen->nip ?? '-',
-                'booking_date' => Carbon::parse($b->booking_date)->format('d M Y'),
+                'booking_date' => \Carbon\Carbon::parse($b->booking_date)->format('Y-m-d'),
+                'booking_date_formatted' => \Carbon\Carbon::parse($b->booking_date)->format('d M Y'),
                 'booked_at' => $b->created_at->format('d M Y H:i'),
             ])
         ]);
