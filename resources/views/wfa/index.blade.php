@@ -430,6 +430,15 @@
 
             const spotsPercent = (5 - day.remaining) / 5 * 100;
 
+            let bookersHtml = '';
+            if (day.bookers && day.bookers.length > 0) {
+                const names = day.bookers.map(name => `<div style="font-size: 0.65rem; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${name}">• ${name}</div>`).join('');
+                bookersHtml = `<div style="margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 5px; text-align: left;">
+                    <div style="font-size: 0.6rem; color: var(--emerald); font-weight: bold; margin-bottom: 3px;">Yang WFA:</div>
+                    ${names}
+                </div>`;
+            }
+
             let content = '';
             if (day.is_holiday) {
                 content = `
@@ -437,12 +446,13 @@
                     <div class="holiday-name">${day.holiday_name}</div>
                 `;
             } else if (day.is_full && !isBooked) {
-                content = '<div class="full-text">PENUH</div>';
+                content = '<div class="full-text">PENUH</div>' + bookersHtml;
             } else {
                 content = `
                     <div class="spots-label">Sisa Kuota</div>
                     <div class="spots-count">${day.remaining}</div>
                     <div class="progress-bar"><div class="progress-fill" style="width: ${spotsPercent}%"></div></div>
+                    ${bookersHtml}
                 `;
             }
 

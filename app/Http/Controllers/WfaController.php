@@ -38,7 +38,9 @@ class WfaController extends Controller
                 $date = $currentDate->copy()->addDays($i);
                 $dateStr = $date->toDateString();
                 
-                $bookingsCount = WfaBooking::where('booking_date', $dateStr)->count();
+                $dayBookings = WfaBooking::with('dosen')->where('booking_date', $dateStr)->get();
+                $bookingsCount = $dayBookings->count();
+                $bookers = $dayBookings->map(fn($b) => $b->dosen->name)->toArray();
                 $limitSetting = Setting::where('key', 'daily_limit')->first();
                 $limit = $limitSetting ? (int)$limitSetting->value : 5; // Default limit 5
                 
@@ -53,7 +55,8 @@ class WfaController extends Controller
                     'remaining' => $limit - $bookingsCount,
                     'in_month' => $date->month == $month,
                     'is_holiday' => $isHoliday,
-                    'holiday_name' => $holidayName
+                    'holiday_name' => $holidayName,
+                    'bookers' => $bookers
                 ];
             }
             
@@ -177,7 +180,7 @@ class WfaController extends Controller
 
     public function admin()
     {
-        $dosens = Dosen::all();
+        $dosens = Dosen::latest()->paginate(5, ['*'], 'dosen_page');
         $limitSetting = Setting::where('key', 'daily_limit')->first();
         $limit = $limitSetting ? $limitSetting->value : 5;
 

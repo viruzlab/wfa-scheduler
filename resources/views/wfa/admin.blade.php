@@ -132,7 +132,9 @@
             footer,
             h1,
             h2:first-of-type,
-            #dosen-table-container {
+            #dosen-table-container,
+            #dosen-pagination,
+            #bookings-pagination {
                 display: none !important;
             }
 
@@ -272,7 +274,6 @@
                     <tr>
                         <th>NIP</th>
                         <th>Nama Dosen</th>
-                        <th>Email Default</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -280,16 +281,32 @@
                         <tr>
                             <td style="font-weight:bold;">{{ $dosen->nip ?? 'Belum ada NIP' }}</td>
                             <td>{{ $dosen->name }}</td>
-                            <td style="color: var(--text-dim); font-size: 0.9rem;">{{ $dosen->email }}</td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="3" class="empty-state">Belum ada dosen terdaftar.</td>
+                            <td colspan="2" class="empty-state">Belum ada dosen terdaftar.</td>
                         </tr>
                     @endforelse
                 </tbody>
             </table>
         </div>
+        @if($dosens->hasPages())
+        <div id="dosen-pagination" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+            @if($dosens->onFirstPage())
+                <button class="btn-outline" style="opacity: 0.5; cursor: not-allowed;" disabled>&laquo; Sebelumnya</button>
+            @else
+                <a href="{{ $dosens->previousPageUrl() }}" class="btn-outline">&laquo; Sebelumnya</a>
+            @endif
+
+            <span style="color: var(--text-dim); font-size: 0.9rem;">Halaman {{ $dosens->currentPage() }} dari {{ $dosens->lastPage() }}</span>
+
+            @if($dosens->hasMorePages())
+                <a href="{{ $dosens->nextPageUrl() }}" class="btn-outline">Selanjutnya &raquo;</a>
+            @else
+                <button class="btn-outline" style="opacity: 0.5; cursor: not-allowed;" disabled>Selanjutnya &raquo;</button>
+            @endif
+        </div>
+        @endif
 
         <h2 style="margin-bottom: 1rem;">Daftar Semua Booking</h2>
         <div class="export-btns">
@@ -313,6 +330,7 @@
                 </tbody>
             </table>
         </div>
+        <div id="bookings-pagination"></div>
     </div>
 
     <footer
@@ -322,6 +340,8 @@
 
     <script>
         let allBookingsData = [];
+        let bookingPage = 1;
+        const bookingPerPage = 10;
 
         document.addEventListener('DOMContentLoaded', () => {
             fetchAdminData();
@@ -331,22 +351,28 @@
             const res = await fetch(`/api/admin/bookings`);
             const data = await res.json();
             allBookingsData = data.bookings;
-            renderData(data);
-        }
-
-        function renderData(data) {
+            
             const stats = document.getElementById('stats-container');
             stats.innerHTML = `<div class="stats-card">Total Seluruh Booking: ${data.count}</div>`;
+            
+            renderData();
+        }
 
+        function renderData() {
             const tbody = document.getElementById('bookings-body');
             tbody.innerHTML = '';
 
-            if (data.bookings.length === 0) {
+            if (allBookingsData.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Belum ada booking terdaftar.</td></tr>';
+                renderPagination();
                 return;
             }
 
-            data.bookings.forEach(b => {
+            const start = (bookingPage - 1) * bookingPerPage;
+            const end = start + bookingPerPage;
+            const paginatedData = allBookingsData.slice(start, end);
+
+            paginatedData.forEach(b => {
                 tbody.innerHTML += `
                     <tr>
                         <td style="font-weight:bold; color:var(--emerald);">${b.booking_date}</td>
@@ -356,6 +382,42 @@
                     </tr>
                 `;
             });
+
+            renderPagination();
+        }
+
+        function renderPagination() {
+            const totalPages = Math.ceil(allBookingsData.length / bookingPerPage);
+            const pagContainer = document.getElementById('bookings-pagination');
+            
+            if (totalPages <= 1) {
+                pagContainer.innerHTML = '';
+                return;
+            }
+            
+            let paginationHtml = '<div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem;">';
+            
+            if (bookingPage > 1) {
+                paginationHtml += `<button class="btn-outline" onclick="changeBookingPage(${bookingPage - 1})">&laquo; Sebelumnya</button>`;
+            } else {
+                paginationHtml += `<button class="btn-outline" style="opacity: 0.5; cursor: not-allowed;" disabled>&laquo; Sebelumnya</button>`;
+            }
+
+            paginationHtml += `<span style="color: var(--text-dim); font-size: 0.9rem;">Halaman ${bookingPage} dari ${totalPages}</span>`;
+
+            if (bookingPage < totalPages) {
+                paginationHtml += `<button class="btn-outline" onclick="changeBookingPage(${bookingPage + 1})">Selanjutnya &raquo;</button>`;
+            } else {
+                paginationHtml += `<button class="btn-outline" style="opacity: 0.5; cursor: not-allowed;" disabled>Selanjutnya &raquo;</button>`;
+            }
+            
+            paginationHtml += '</div>';
+            pagContainer.innerHTML = paginationHtml;
+        }
+
+        function changeBookingPage(page) {
+            bookingPage = page;
+            renderData();
         }
 
         function exportToExcel() {
