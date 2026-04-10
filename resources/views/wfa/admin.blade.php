@@ -311,7 +311,7 @@
         <h2 style="margin-bottom: 1rem;">Daftar Semua Booking</h2>
         <div class="export-btns">
             <button onclick="exportToExcel()" class="btn-outline">Download Excel (CSV)</button>
-            <button onclick="window.print()" class="btn-outline">Print ke PDF</button>
+            <button onclick="printAllBookings()" class="btn-outline">Print ke PDF</button>
         </div>
         <div id="stats-container"></div>
 
@@ -432,12 +432,10 @@
             // Rows
             allBookingsData.forEach(row => {
                 let r = [row.booking_date, row.user_nip, row.user_name, row.booked_at];
-                // Escape commas by quoting string if needed
                 let csvRow = r.map(field => `"${field}"`).join(",");
                 csvContent += csvRow + "\r\n";
             });
 
-            // Trigger download
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement("a");
             const url = URL.createObjectURL(blob);
@@ -447,6 +445,33 @@
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
+        }
+
+        window.onafterprint = function() {
+            // Mengembalikan tampilan tabel ke mode pagination normal setelah dialog print ditutup
+            if(allBookingsData.length > 0) {
+                renderData();
+            }
+        };
+
+        function printAllBookings() {
+            const tbody = document.getElementById('bookings-body');
+            tbody.innerHTML = '';
+            
+            // Render seluruh data ke tabel sebelum di print
+            allBookingsData.forEach(b => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td style="font-weight:bold; color:var(--emerald);">${b.booking_date}</td>
+                        <td>${b.user_nip}</td>
+                        <td>${b.user_name}</td>
+                        <td style="color: var(--text-dim); font-size: 0.8rem;">${b.booked_at}</td>
+                    </tr>
+                `;
+            });
+            
+            // Panggil API Print Browser
+            window.print();
         }
     </script>
 </body>
