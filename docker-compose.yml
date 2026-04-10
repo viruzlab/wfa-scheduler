@@ -47,6 +47,17 @@ services:
             - wfa-dbdata:/var/lib/mysql
         networks:
             - wfa-net
+    tunnel:
+        image: cloudflare/cloudflared:latest
+        container_name: wfa-scheduler-tunnel
+        restart: unless-stopped
+        command: tunnel --no-autoupdate run
+        environment:
+            - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+        networks:
+            - wfa-net
+        depends_on:
+            - web
 
 networks:
     wfa-net:
